@@ -36,7 +36,7 @@ public class SecurityConfig {
 //                 token을 검증하고, token을 통해 Authentication객체생성
                 .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
 //                 .authenticated() : 모든요청에대해서 Authentication객체가 생성되기를 요구
-                .authorizeHttpRequests(a -> a.requestMatchers("/member/create", "/member/doLogin", "/member/refresh-token", "/api/openvidu/**").permitAll().anyRequest().authenticated())
+                .authorizeHttpRequests(a -> a.requestMatchers("/member/create", "/member/doLogin", "/member/refresh-token", "/api/**").permitAll().anyRequest().authenticated())
                 .build();
     }
 

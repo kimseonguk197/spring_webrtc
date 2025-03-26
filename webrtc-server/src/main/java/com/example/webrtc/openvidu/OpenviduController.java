@@ -8,29 +8,22 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@RequestMapping("/api/openvidu")
 @RestController
 public class OpenviduController {
 
-    private final OpenVidu openVidu;
+    private final OpenVidu openvidu;
     private final String SECRET = "MY_SECRET";
 
     public OpenviduController() {
-        this.openVidu = new OpenVidu("http://localhost:4443/", SECRET);
+        this.openvidu = new OpenVidu("http://localhost:4443/", SECRET);
     }
 
-    // 새 세션 생성
-    @PostMapping("/session")
-    public ResponseEntity<String> createSession() throws OpenViduJavaClientException, OpenViduHttpException {
-        Session session = openVidu.createSession();
-        return ResponseEntity.ok(session.getSessionId());
-    }
 
     // 현재 존재하는 세션 목록 가져오기
-    @GetMapping("/sessions")
+    @GetMapping("/api/sessions")
     public ResponseEntity<List<String>> getSessionList() throws OpenViduJavaClientException, OpenViduHttpException {
-        openVidu.fetch(); // 최신 상태 동기화
-        List<String> sessionIds = openVidu.getActiveSessions()
+        openvidu.fetch(); // 최신 상태 동기화
+        List<String> sessionIds = openvidu.getActiveSessions()
                 .stream()
                 .map(Session::getSessionId)
                 .collect(Collectors.toList());
@@ -38,21 +31,25 @@ public class OpenviduController {
         return ResponseEntity.ok(sessionIds);
     }
 
-    // 세션에 연결할 수 있는 token 발급
-    @PostMapping("/token")
-    public ResponseEntity<String> createToken(@RequestBody Map<String, String> body)
+    @PostMapping("/api/sessions")
+    public ResponseEntity<String> initializeSession(@RequestBody(required = false) Map<String, Object> params)
             throws OpenViduJavaClientException, OpenViduHttpException {
-        openVidu.fetch();
-        String sessionId = body.get("sessionId");
-        Session session = openVidu.getActiveSession(sessionId);
+        SessionProperties properties = SessionProperties.fromJson(params).build();
+        Session session = openvidu.createSession(properties);
+        return new ResponseEntity<>(session.getSessionId(), HttpStatus.OK);
+    }
 
+    @PostMapping("/api/sessions/{sessionId}/connections")
+    public ResponseEntity<String> createConnection(@PathVariable("sessionId") String sessionId,
+                                                   @RequestBody(required = false) Map<String, Object> params)
+            throws OpenViduJavaClientException, OpenViduHttpException {
+        Session session = openvidu.getActiveSession(sessionId);
         if (session == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Session not found");
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-
-        ConnectionProperties properties = new ConnectionProperties.Builder().build();
+        ConnectionProperties properties = ConnectionProperties.fromJson(params).build();
         Connection connection = session.createConnection(properties);
-        return ResponseEntity.ok(connection.getToken());
+        return new ResponseEntity<>(connection.getToken(), HttpStatus.OK);
     }
 
 }
